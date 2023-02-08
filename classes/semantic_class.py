@@ -11,13 +11,17 @@ class SemanticClass:
         self.df = df                                    # input df
         self.threshold = threshold                      # threshold for similarity
         self.text_column = text_column                  # column name for text
-        self.__convert_to_list()                        # convert df to list if applicable
+        self.__convert_to_list()                        # convert df to list
 
     def __convert_to_list(self):
+        """Convert a pandas dataframe to a list"""
         self.list_df = self.df[self.text_column].tolist()
 
     @staticmethod
     def __mean_pooling(model_output, attention_mask):
+        """
+        Calculates the mean of the embeddings for each sentence to return a single vector per sentence
+        """
         token_embeddings = model_output.last_hidden_state
         input_mask_expanded = (
             attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
@@ -27,8 +31,9 @@ class SemanticClass:
         )
 
     def __get_scores(self):
+        """Gets the scores for each sentence in the list"""
         sentences = self.list_df
-        model_ckpt = "sentence-transformers/all-MiniLM-L6-v2"
+        model_ckpt = "sentence-transformers/all-MiniLM-L6-v2" #Huggingface model
         tokenizer = AutoTokenizer.from_pretrained(model_ckpt)
         model = AutoModel.from_pretrained(model_ckpt)
 
@@ -56,14 +61,21 @@ class SemanticClass:
             scores[idx, :] = cosine_similarity([sentence_embeddings[idx]], sentence_embeddings)[0]
         self.scores = scores
         return scores
-        
+
     @staticmethod
     def __get_matches(scores, threshold):
+        """Get the indices of the sentences that are similar based on the threshold"""
         matches = [i for i, v in enumerate(scores) if v > threshold]
         return matches, len(matches)
         
 
     def __run_matcher(self):
+        """
+        Iterates through all the sentences and finds the similar sentences based on the threshold
+        It then only keeps one sentence and removes the rest
+        If a sentence has been removed then it skips over that sentence
+        
+        """
         data = self.list_df
         threshold = self.threshold
         scores = self.scores
@@ -71,7 +83,7 @@ class SemanticClass:
         ids_to_return = [] # Ids of the original similar sentences to be returned
         for idx in range(0, len(data)):
             if idx in ids_to_remove:
-                continue
+                continue # Sentence has already been removed so skip
             matches, length = self.__get_matches(scores[idx], threshold)
             if(length > 1):
                 ids_to_return.append(matches[0])
@@ -79,17 +91,17 @@ class SemanticClass:
             else:
                 ids_to_return.append(matches[0])
         self.ids_to_return = ids_to_return
+        self.ids_to_remove = ids_to_remove
         return ids_to_return, ids_to_remove
 
     def __return_df(self):
+        """Returns the dataframe with the similar sentences removed""" 
         return self.df.iloc[self.ids_to_return]
 
 
     def main(self):
+        """Main function to run the class"""
         self.__get_scores()
         self.__run_matcher()
+        print(f"Number of sentences removed: {len(set(self.ids_to_remove))}")
         return self.__return_df()
-
-
-    
-#Define the threshold and get the indices of the sentences that are similar
