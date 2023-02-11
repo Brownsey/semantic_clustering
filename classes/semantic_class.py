@@ -86,10 +86,10 @@ class SemanticClass:
                 continue # Sentence has already been removed so skip
             matches, length = self.__get_matches(scores[idx], threshold)
             if(length > 1):
-                ids_to_return.append(matches[0])
-                ids_to_remove.extend(matches[1:])
+                ids_to_return.append(idx)
+                ids_to_remove.extend(matches)
             else:
-                ids_to_return.append(matches[0])
+                ids_to_return.append(idx)
         self.ids_to_return = ids_to_return
         self.ids_to_remove = ids_to_remove
         return ids_to_return, ids_to_remove
@@ -103,5 +103,5 @@ class SemanticClass:
         """Main function to run the class"""
         self.__get_scores()
         self.__run_matcher()
-        print(f"Number of sentences removed: {len(set(self.ids_to_remove))}")
+        print(f"Number of sentences: {len(set(self.ids_to_return))}")
         return self.__return_df()
